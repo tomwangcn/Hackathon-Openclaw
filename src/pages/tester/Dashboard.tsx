@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<TestStatus, { label: string; variant: "secondary" | 
   not_started: { label: "Not Started", variant: "secondary", icon: CircleDot },
   in_session: { label: "In Session", variant: "info", icon: Play },
   uploading: { label: "Uploading", variant: "warning", icon: Loader2 },
-  processing: { label: "Processing", variant: "warning", icon: Loader2 },
+  processing: { label: "Report Processing", variant: "warning", icon: Loader2 },
   report_ready: { label: "Report Ready", variant: "success", icon: FileText },
   completed: { label: "Completed", variant: "default", icon: CheckCircle2 },
 }
@@ -243,7 +243,7 @@ export default function Dashboard() {
 
           <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] overflow-hidden">
             {/* Table Header */}
-            <div className="grid grid-cols-[1fr_120px_140px_180px_160px] gap-4 items-center px-5 py-3 bg-[var(--color-surface-elevated)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium border-b border-[var(--color-border)]">
+            <div className="grid grid-cols-[1fr_120px_140px_180px_200px] gap-4 items-center px-5 py-3 bg-[var(--color-surface-elevated)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium border-b border-[var(--color-border)]">
               <span>Study</span>
               <span>Accepted</span>
               <span>Status</span>
@@ -262,7 +262,7 @@ export default function Dashboard() {
                   {/* Main Row */}
                   <div
                     className={cn(
-                      "grid grid-cols-[1fr_120px_140px_180px_160px] gap-4 items-center px-5 py-4 transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)]/50",
+                      "grid grid-cols-[1fr_120px_140px_180px_200px] gap-4 items-center px-5 py-4 transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)]/50",
                       isExpanded && "bg-[var(--color-surface)]/80"
                     )}
                     onClick={() => setExpandedRow(isExpanded ? null : test.id)}
@@ -288,45 +288,44 @@ export default function Dashboard() {
                       </Badge>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
+                    <div className="space-y-1.5 min-w-0 overflow-hidden">
+                      <div className="text-xs">
                         <span className="text-[var(--color-text-secondary)]">
                           {test.tasksCompleted}/{test.tasksTotal} tasks
                         </span>
-                        <span className="text-[var(--color-text-muted)]">{Math.round(progressPct)}%</span>
                       </div>
-                      <Progress value={progressPct} className="h-1.5" />
+                      <Progress value={progressPct} className="h-1.5 max-w-[120px]" />
                     </div>
 
-                    <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                       {test.status === "not_started" && (
-                        <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
-                          <Play className="h-3 w-3" />
-                          Start
-                        </Button>
+                        <>
+                          <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
+                            <Play className="h-3 w-3" />
+                            Start
+                          </Button>
+                          <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
+                            <XCircle className="h-3 w-3" />
+                            Withdraw
+                          </Button>
+                        </>
                       )}
                       {test.status === "in_session" && (
-                        <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
-                          <Play className="h-3 w-3" />
-                          Continue
-                        </Button>
+                        <>
+                          <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
+                            <Play className="h-3 w-3" />
+                            Continue
+                          </Button>
+                          <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
+                            <XCircle className="h-3 w-3" />
+                            Withdraw
+                          </Button>
+                        </>
                       )}
                       {test.status === "report_ready" && (
                         <Button size="sm" variant="outline" className="gap-1 h-7 text-xs">
                           <Eye className="h-3 w-3" />
                           View Report
-                        </Button>
-                      )}
-                      {test.status === "completed" && (
-                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs">
-                          <Eye className="h-3 w-3" />
-                          Details
-                        </Button>
-                      )}
-                      {(test.status === "not_started" || test.status === "in_session") && (
-                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
-                          <XCircle className="h-3 w-3" />
-                          Withdraw
                         </Button>
                       )}
                     </div>

@@ -20,9 +20,8 @@ import {
 
 const sidebarNav = [
   { label: "Dashboard", href: "/business/dashboard", icon: LayoutDashboard },
-  { label: "Studies", href: "/business/studies/new", icon: FlaskConical },
+  { label: "New Study", href: "/business/studies/new", icon: FlaskConical },
   { label: "Reports", href: "/business/reports", icon: BarChart3 },
-  { label: "Integrations", href: "/business/integrations", icon: Puzzle },
   { label: "Settings", href: "/business/settings", icon: Settings },
 ]
 

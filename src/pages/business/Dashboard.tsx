@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -135,6 +136,28 @@ const statusVariant: Record<string, "default" | "success" | "secondary"> = {
 }
 
 export default function Dashboard() {
+  const location = useLocation()
+  const [studies, setStudies] = useState(recentStudies)
+  const [showBanner, setShowBanner] = useState(false)
+  const [newStudyName, setNewStudyName] = useState("")
+
+  useEffect(() => {
+    const state = location.state as { newStudy?: { name: string; tasks: number; focusAreas: string[] } } | null
+    if (state?.newStudy) {
+      const created: (typeof recentStudies)[number] = {
+        name: state.newStudy.name,
+        status: "Active",
+        sessions: 0,
+        completionRate: 0,
+        lastActivity: "Just now",
+      }
+      setStudies((prev) => [created, ...prev])
+      setNewStudyName(state.newStudy.name)
+      setShowBanner(true)
+      window.history.replaceState({}, "")
+    }
+  }, [location.state])
+
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
       <div className="mx-auto max-w-[1400px] px-6 py-8">
@@ -155,6 +178,31 @@ export default function Dashboard() {
             </Button>
           </Link>
         </div>
+
+        {/* Published banner */}
+        {showBanner && (
+          <div className="mb-6 flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 px-5 py-4 animate-fade-up">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-success)]/10">
+                <FlaskConical className="h-4 w-4 text-[var(--color-success)]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                  Study published successfully!
+                </p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  &ldquo;{newStudyName}&rdquo; is now live and ready for testers.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowBanner(false)}
+              className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -278,10 +326,13 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]/50">
-                  {recentStudies.map((study) => (
+                  {studies.map((study, idx) => (
                     <tr
-                      key={study.name}
-                      className="group transition-colors hover:bg-[var(--color-surface-hover)]/40"
+                      key={study.name + idx}
+                      className={cn(
+                        "group transition-colors hover:bg-[var(--color-surface-hover)]/40",
+                        study.lastActivity === "Just now" && "bg-[var(--color-success)]/[0.03]"
+                      )}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

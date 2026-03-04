@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -94,12 +95,25 @@ const checklistItems = [
 ]
 
 export default function StudyBuilder() {
+  const navigate = useNavigate()
   const [studyName, setStudyName] = useState("Checkout Flow Accessibility Audit")
   const [selectedAreas, setSelectedAreas] = useState(["Cognitive Load", "Forms", "Navigation"])
   const [wcagEnabled, setWcagEnabled] = useState(true)
   const [webcamEnabled, setWebcamEnabled] = useState(false)
   const [tasks, setTasks] = useState(initialTasks)
   const [chatInput, setChatInput] = useState("")
+
+  const handlePublish = () => {
+    navigate("/business/dashboard", {
+      state: {
+        newStudy: {
+          name: studyName,
+          tasks: tasks.length,
+          focusAreas: selectedAreas,
+        },
+      },
+    })
+  }
 
   const toggleArea = (area: string) => {
     setSelectedAreas((prev) =>
@@ -143,7 +157,7 @@ export default function StudyBuilder() {
               <Save className="h-3.5 w-3.5" />
               Save Draft
             </Button>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2" onClick={handlePublish}>
               <Rocket className="h-3.5 w-3.5" />
               Publish
             </Button>
@@ -386,7 +400,7 @@ export default function StudyBuilder() {
 
           {/* RIGHT: Agent assistant panel */}
           <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <Card className="flex flex-col overflow-hidden" style={{ height: "600px" }}>
+            <Card className="flex flex-col overflow-hidden h-[calc(100vh-8rem)]">
               <CardHeader className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-accent)]/10">
