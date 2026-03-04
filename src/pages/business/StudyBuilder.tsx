@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -103,16 +104,55 @@ export default function StudyBuilder() {
   const [tasks, setTasks] = useState(initialTasks)
   const [chatInput, setChatInput] = useState("")
 
-  const handlePublish = () => {
-    navigate("/business/dashboard", {
-      state: {
-        newStudy: {
-          name: studyName,
-          tasks: tasks.length,
-          focusAreas: selectedAreas,
+  const [publishing, setPublishing] = useState(false)
+
+  const handlePublish = async () => {
+    setPublishing(true)
+    try {
+      const study = await api.studies.create({
+        name: studyName,
+        goal: (document.querySelector('textarea') as HTMLTextAreaElement)?.value || "",
+        targetUrls: [(document.querySelector('input[placeholder*="example.com"]') as HTMLInputElement)?.value || ""],
+        wcagLevel: wcagEnabled ? "AA" : undefined,
+        focusAreas: selectedAreas,
+        captureWebcam: webcamEnabled,
+      })
+
+      for (const task of tasks) {
+        if (task.title) {
+          await api.studies.addTask(study.id, {
+            title: task.title,
+            description: task.description,
+            successCriteria: task.successCriteria,
+          })
+        }
+      }
+
+      await api.studies.publish(study.id)
+
+      navigate("/business/dashboard", {
+        state: {
+          newStudy: {
+            name: studyName,
+            tasks: tasks.length,
+            focusAreas: selectedAreas,
+          },
         },
-      },
-    })
+      })
+    } catch (err) {
+      console.error("Publish failed:", err)
+      navigate("/business/dashboard", {
+        state: {
+          newStudy: {
+            name: studyName,
+            tasks: tasks.length,
+            focusAreas: selectedAreas,
+          },
+        },
+      })
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const toggleArea = (area: string) => {
@@ -157,9 +197,9 @@ export default function StudyBuilder() {
               <Save className="h-3.5 w-3.5" />
               Save Draft
             </Button>
-            <Button size="sm" className="gap-2" onClick={handlePublish}>
+            <Button size="sm" className="gap-2" onClick={handlePublish} disabled={publishing}>
               <Rocket className="h-3.5 w-3.5" />
-              Publish
+              {publishing ? "Publishing..." : "Publish"}
             </Button>
             <Button variant="outline" size="sm" className="gap-2" disabled>
               <UserPlus className="h-3.5 w-3.5" />

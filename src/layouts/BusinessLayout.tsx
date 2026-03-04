@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Outlet, Link, useLocation } from "react-router-dom"
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
+import { useAuth } from "@/context/AuthContext"
 import { Logo } from "@/components/Logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,14 @@ const sidebarNav = [
 
 export default function BusinessLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    navigate("/")
+  }
 
   return (
     <div className="flex h-screen bg-[var(--color-background)]">
@@ -74,13 +82,13 @@ export default function BusinessLayout() {
         </nav>
 
         <div className="border-t border-[var(--color-border)] p-3">
-          <Link
-            to="/"
-            className="flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]"
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -111,11 +119,11 @@ export default function BusinessLayout() {
                 className="flex items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-hover)]"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent-muted)] text-sm font-semibold text-[var(--color-accent)]">
-                  B
+                  {user?.name?.charAt(0) || "B"}
                 </div>
                 <div className="hidden text-left lg:block">
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                    Business
+                    {user?.name || "Business"}
                   </p>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     Admin
@@ -141,13 +149,13 @@ export default function BusinessLayout() {
                     Settings
                   </Link>
                   <Separator className="my-1" />
-                  <Link
-                    to="/"
-                    className="flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--color-danger)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--color-danger)] transition-colors hover:bg-[var(--color-surface-hover)]"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>

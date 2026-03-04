@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { api } from "@/lib/api"
 import {
   Search,
   Monitor,
@@ -252,8 +253,52 @@ export default function Marketplace() {
   const [captureFilter, setCaptureFilter] = useState<string>("all")
   const [deviceFilter, setDeviceFilter] = useState<string>("all")
   const [selectedTest, setSelectedTest] = useState<MockTest | null>(null)
+  const [allTests, setAllTests] = useState<MockTest[]>(MOCK_TESTS)
+  const [accepting, setAccepting] = useState(false)
 
-  const filtered = MOCK_TESTS.filter((t) => {
+  useEffect(() => {
+    api.marketplace.list().then((apiStudies) => {
+      if (apiStudies && apiStudies.length > 0) {
+        const mapped: MockTest[] = apiStudies.map((s: any) => ({
+          id: s.id,
+          title: s.name,
+          business: s.org?.name || "Unknown",
+          description: s.goal || "",
+          category: (s.focusAreas as string[])?.[0] || "General",
+          duration: s.estimatedMinutes || 30,
+          capture: [
+            "screen" as CaptureType,
+            ...(s.captureAudio ? ["audio" as CaptureType] : []),
+            ...(s.captureWebcam ? ["webcam" as CaptureType] : []),
+          ],
+          focusAreas: (s.focusAreas || []) as FocusArea[],
+          reward: s.reward ?? 25,
+          tasks: (s.tasks || []).map((t: any) => t.title),
+          consent: ["Screen recording of the testing session"],
+          privacy: "Data processed under GDPR guidelines.",
+          retention: "90 days",
+          deviceReq: "Desktop",
+        }))
+        setAllTests([...mapped, ...MOCK_TESTS])
+      }
+    }).catch(() => {})
+  }, [])
+
+  const handleAccept = async (test: MockTest) => {
+    setAccepting(true)
+    try {
+      await api.marketplace.accept(test.id)
+      setSelectedTest(null)
+      navigate("/tester/dashboard")
+    } catch {
+      setSelectedTest(null)
+      navigate(`/tester/session/${test.id}`)
+    } finally {
+      setAccepting(false)
+    }
+  }
+
+  const filtered = allTests.filter((t) => {
     if (category !== "all" && t.category !== category) return false
     if (duration === "short" && t.duration > 30) return false
     if (duration === "medium" && (t.duration <= 30 || t.duration > 45)) return false
@@ -485,11 +530,8 @@ export default function Marketplace() {
                 </span>
                 <span className="text-xs text-[var(--color-text-muted)] ml-1">reward</span>
               </div>
-              <Button size="lg" className="gap-2" onClick={() => {
-                setSelectedTest(null)
-                navigate(`/tester/session/${selectedTest.id}`)
-              }}>
-                Accept Test
+              <Button size="lg" className="gap-2" disabled={accepting} onClick={() => handleAccept(selectedTest)}>
+                {accepting ? "Accepting..." : "Accept Test"}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </DialogFooter>

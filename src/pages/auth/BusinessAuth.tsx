@@ -1,4 +1,6 @@
+import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useAuth } from "@/context/AuthContext"
 import { Logo } from "@/components/Logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,14 +11,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Building2, ArrowLeft, Mail, Lock } from "lucide-react"
+import { Building2, ArrowLeft, Mail, Lock, Loader2 } from "lucide-react"
 
 export default function BusinessAuth() {
   const navigate = useNavigate()
+  const { login } = useAuth()
+  const [email, setEmail] = useState("business@openclaw.dev")
+  const [password, setPassword] = useState("password123")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    navigate("/business/dashboard")
+    setError("")
+    setLoading(true)
+    try {
+      const user = await login(email, password)
+      if (user.role !== "business") {
+        setError("This account is not a business account")
+        return
+      }
+      navigate("/business/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Login failed")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -40,27 +60,33 @@ export default function BusinessAuth() {
             </div>
             <CardTitle className="text-xl">Business Sign In</CardTitle>
             <CardDescription>
-              Enter anything to continue to the dashboard
+              Sign in to manage your accessibility studies
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-[var(--radius-md)] bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 px-3 py-2 text-sm text-[var(--color-danger)]">
+                  {error}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
-                  <Input placeholder="you@company.com" className="pl-9" />
+                  <Input placeholder="you@company.com" className="pl-9" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
-                  <Input type="password" placeholder="••••••••" className="pl-9" />
+                  <Input type="password" placeholder="••••••••" className="pl-9" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
               </div>
-              <Button type="submit" className="w-full" size="lg">
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>
             </form>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -140,6 +141,19 @@ export default function Dashboard() {
   const [studies, setStudies] = useState(recentStudies)
   const [showBanner, setShowBanner] = useState(false)
   const [newStudyName, setNewStudyName] = useState("")
+
+  useEffect(() => {
+    api.studies.list().then((apiStudies) => {
+      const mapped = apiStudies.map((s: any) => ({
+        name: s.name as string,
+        status: (s.status === "active" ? "Active" : s.status === "published" ? "Active" : s.status === "completed" ? "Completed" : "Draft") as "Active" | "Completed" | "Draft",
+        sessions: (s._count?.sessions ?? 0) as number,
+        completionRate: 0,
+        lastActivity: new Date(s.updatedAt).toLocaleDateString(),
+      }))
+      if (mapped.length > 0) setStudies(mapped)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const state = location.state as { newStudy?: { name: string; tasks: number; focusAreas: string[] } } | null

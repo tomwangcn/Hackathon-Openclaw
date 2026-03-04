@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   Card,
@@ -296,7 +297,28 @@ const priorityVariant: Record<string, "destructive" | "warning" | "info"> = {
 }
 
 function StudyListView() {
-  const activeStudies = studiesList.filter((s) => s.status !== "Draft")
+  const [dynamicStudies, setDynamicStudies] = useState(studiesList)
+
+  useEffect(() => {
+    api.studies.list().then((apiStudies) => {
+      if (apiStudies && apiStudies.length > 0) {
+        const mapped = apiStudies.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          status: s.status === "active" || s.status === "published" ? "Active" as const : s.status === "completed" ? "Completed" as const : "Draft" as const,
+          sessions: s._count?.sessions ?? 0,
+          targetSessions: 60,
+          findings: 0,
+          critical: 0,
+          completionRate: 0,
+          lastActivity: new Date(s.updatedAt).toLocaleDateString(),
+        }))
+        setDynamicStudies([...mapped, ...studiesList])
+      }
+    }).catch(() => {})
+  }, [])
+
+  const activeStudies = dynamicStudies.filter((s) => s.status !== "Draft")
   const totalFindings = activeStudies.reduce((sum, s) => sum + s.findings, 0)
   const totalCritical = activeStudies.reduce((sum, s) => sum + s.critical, 0)
 
@@ -357,7 +379,7 @@ function StudyListView() {
         </div>
 
         <div className="space-y-3">
-          {studiesList.map((study) => {
+          {dynamicStudies.map((study) => {
             const isDraft = study.status === "Draft"
             return (
               <Link
