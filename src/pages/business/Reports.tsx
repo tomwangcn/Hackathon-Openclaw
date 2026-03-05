@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useParams, Link } from "react-router-dom"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   Card,
@@ -26,9 +28,90 @@ import {
   Shield,
   Target,
   Zap,
+  FlaskConical,
+  ArrowRight,
+  Bug,
+  ChevronRight,
 } from "lucide-react"
 
-// --- Mock data ---
+// --- Studies list data ---
+
+const studiesList = [
+  {
+    id: "1",
+    name: "Checkout Flow Accessibility Audit",
+    status: "Active" as const,
+    sessions: 48,
+    targetSessions: 60,
+    findings: 42,
+    critical: 3,
+    completionRate: 87,
+    lastActivity: "12 min ago",
+  },
+  {
+    id: "2",
+    name: "Onboarding Redesign",
+    status: "Completed" as const,
+    sessions: 62,
+    targetSessions: 60,
+    findings: 28,
+    critical: 1,
+    completionRate: 84,
+    lastActivity: "2 hours ago",
+  },
+  {
+    id: "3",
+    name: "Search UX Improvements",
+    status: "Active" as const,
+    sessions: 31,
+    targetSessions: 50,
+    findings: 15,
+    critical: 0,
+    completionRate: 78,
+    lastActivity: "45 min ago",
+  },
+  {
+    id: "4",
+    name: "Form Accessibility Audit",
+    status: "Active" as const,
+    sessions: 19,
+    targetSessions: 30,
+    findings: 9,
+    critical: 2,
+    completionRate: 95,
+    lastActivity: "3 hours ago",
+  },
+  {
+    id: "5",
+    name: "Dashboard Usability",
+    status: "Completed" as const,
+    sessions: 55,
+    targetSessions: 50,
+    findings: 22,
+    critical: 0,
+    completionRate: 88,
+    lastActivity: "5 days ago",
+  },
+  {
+    id: "6",
+    name: "Mobile Navigation",
+    status: "Draft" as const,
+    sessions: 0,
+    targetSessions: 40,
+    findings: 0,
+    critical: 0,
+    completionRate: 0,
+    lastActivity: "1 day ago",
+  },
+]
+
+const studyStatusVariant: Record<string, "default" | "success" | "secondary"> = {
+  Active: "default",
+  Completed: "success",
+  Draft: "secondary",
+}
+
+// --- Report detail mock data ---
 
 const studyMeta = {
   name: "Checkout Flow Accessibility Audit",
@@ -213,10 +296,164 @@ const priorityVariant: Record<string, "destructive" | "warning" | "info"> = {
   Medium: "info",
 }
 
-export default function Reports() {
+function StudyListView() {
+  const [dynamicStudies, setDynamicStudies] = useState(studiesList)
+
+  useEffect(() => {
+    api.studies.list().then((apiStudies) => {
+      if (apiStudies && apiStudies.length > 0) {
+        const mapped = apiStudies.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          status: s.status === "active" || s.status === "published" ? "Active" as const : s.status === "completed" ? "Completed" as const : "Draft" as const,
+          sessions: s._count?.sessions ?? 0,
+          targetSessions: 60,
+          findings: 0,
+          critical: 0,
+          completionRate: 0,
+          lastActivity: new Date(s.updatedAt).toLocaleDateString(),
+        }))
+        setDynamicStudies([...mapped, ...studiesList])
+      }
+    }).catch(() => {})
+  }, [])
+
+  const activeStudies = dynamicStudies.filter((s) => s.status !== "Draft")
+  const totalFindings = activeStudies.reduce((sum, s) => sum + s.findings, 0)
+  const totalCritical = activeStudies.reduce((sum, s) => sum + s.critical, 0)
+
+  return (
+    <div className="min-h-screen bg-[var(--color-background)]">
+      <div className="mx-auto max-w-[1400px] px-6 py-8">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+              Reports
+            </h1>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+              Select a study to view its detailed report and findings
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-[var(--radius-md)] bg-[var(--color-surface-elevated)] p-2.5">
+                <FlaskConical className="h-4 w-4 text-[var(--color-accent)]" />
+              </div>
+              <div>
+                <p className="font-display text-lg font-bold tabular-nums text-[var(--color-text-primary)]">
+                  {activeStudies.length}
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)]">Studies with Reports</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-[var(--radius-md)] bg-[var(--color-surface-elevated)] p-2.5">
+                <Bug className="h-4 w-4 text-[var(--color-warning)]" />
+              </div>
+              <div>
+                <p className="font-display text-lg font-bold tabular-nums text-[var(--color-text-primary)]">
+                  {totalFindings}
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)]">Total Findings</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-[var(--radius-md)] bg-[var(--color-surface-elevated)] p-2.5">
+                <Shield className="h-4 w-4 text-[var(--color-danger)]" />
+              </div>
+              <div>
+                <p className="font-display text-lg font-bold tabular-nums text-[var(--color-text-primary)]">
+                  {totalCritical}
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)]">Critical Issues</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-3">
+          {dynamicStudies.map((study) => {
+            const isDraft = study.status === "Draft"
+            return (
+              <Link
+                key={study.id}
+                to={isDraft ? "#" : `/business/reports/${study.id}`}
+                className={cn(
+                  "block",
+                  isDraft && "pointer-events-none opacity-50"
+                )}
+              >
+                <Card className="group transition-all hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-surface)]/50">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors">
+                        <FlaskConical className="h-4.5 w-4.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5 mb-1">
+                          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
+                            {study.name}
+                          </h3>
+                          <Badge variant={studyStatusVariant[study.status]}>
+                            {study.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {study.sessions}/{study.targetSessions} sessions
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Bug className="h-3 w-3" />
+                            {study.findings} findings
+                          </span>
+                          {study.critical > 0 && (
+                            <span className="flex items-center gap-1 text-[var(--color-danger)]">
+                              <Shield className="h-3 w-3" />
+                              {study.critical} critical
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {study.lastActivity}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-2">
+                          <Progress value={study.completionRate} className="h-1.5 w-20" />
+                          <span className="text-xs tabular-nums text-[var(--color-text-muted)] w-8">
+                            {study.completionRate}%
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReportDetailView() {
+  const { id: studyId } = useParams()
   const [selectedTickets, setSelectedTickets] = useState<Record<string, boolean>>(
     Object.fromEntries(jiraTickets.map((t) => [t.id, t.selected]))
   )
+  const [generating, setGenerating] = useState(false)
+  const [aiReport, setAiReport] = useState<any>(null)
 
   const toggleTicket = (id: string) => {
     setSelectedTickets((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -224,9 +461,31 @@ export default function Reports() {
 
   const selectedCount = Object.values(selectedTickets).filter(Boolean).length
 
+  const generateAiReport = async () => {
+    if (!studyId) return
+    setGenerating(true)
+    try {
+      const result = await api.agents.report(studyId)
+      setAiReport(result)
+    } catch (err: any) {
+      console.error("Report generation failed:", err)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
       <div className="mx-auto max-w-[1400px] px-6 py-8">
+        {/* Back link */}
+        <Link
+          to="/business/reports"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+        >
+          <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+          Back to all studies
+        </Link>
+
         {/* Page header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
@@ -235,13 +494,69 @@ export default function Reports() {
             </h1>
             <Badge variant="default">{studyMeta.status}</Badge>
           </div>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Created {studyMeta.created} · {studyMeta.sessionsTotal} of {studyMeta.targetSessions} sessions completed
-          </p>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Created {studyMeta.created} · {studyMeta.sessionsTotal} of {studyMeta.targetSessions} sessions completed
+            </p>
+            <Button size="sm" className="gap-2" onClick={generateAiReport} disabled={generating}>
+              <Sparkles className="h-3.5 w-3.5" />
+              {generating ? "Generating AI Report..." : "Generate AI Report"}
+            </Button>
+          </div>
           <Progress
             value={(studyMeta.sessionsTotal / studyMeta.targetSessions) * 100}
             className="mt-3 h-1.5 max-w-sm"
           />
+
+          {aiReport && (
+            <Card className="mt-6">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[var(--color-accent)]" />
+                  <CardTitle className="text-base">AI-Generated Report</CardTitle>
+                  {aiReport.overallScore !== undefined && (
+                    <Badge variant={aiReport.overallScore >= 70 ? "success" : aiReport.overallScore >= 40 ? "warning" : "destructive"}>
+                      Score: {aiReport.overallScore}/100
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{aiReport.summary}</p>
+                {aiReport.findings?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Findings ({aiReport.findings.length})</h4>
+                    <div className="space-y-2">
+                      {aiReport.findings.slice(0, 5).map((f: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <Badge variant={f.severity === "critical" ? "destructive" : f.severity === "high" ? "warning" : "secondary"} className="shrink-0 mt-0.5">
+                            {f.severity}
+                          </Badge>
+                          <div>
+                            <span className="font-medium text-[var(--color-text-primary)]">{f.title}</span>
+                            {f.recommendation && <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{f.recommendation}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiReport.recommendations?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Recommendations</h4>
+                    <div className="space-y-1.5">
+                      {aiReport.recommendations.map((r: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <Badge variant="outline" className="shrink-0 mt-0.5">{r.priority}</Badge>
+                          <span className="text-[var(--color-text-secondary)]">{r.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Tabs */}
@@ -618,4 +933,14 @@ export default function Reports() {
       </div>
     </div>
   )
+}
+
+export default function Reports() {
+  const { id } = useParams()
+
+  if (!id) {
+    return <StudyListView />
+  }
+
+  return <ReportDetailView />
 }

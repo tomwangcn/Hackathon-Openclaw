@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { api } from "@/lib/api"
 import {
   ClipboardCheck,
   Play,
@@ -42,7 +43,7 @@ const STATUS_CONFIG: Record<TestStatus, { label: string; variant: "secondary" | 
   not_started: { label: "Not Started", variant: "secondary", icon: CircleDot },
   in_session: { label: "In Session", variant: "info", icon: Play },
   uploading: { label: "Uploading", variant: "warning", icon: Loader2 },
-  processing: { label: "Processing", variant: "warning", icon: Loader2 },
+  processing: { label: "Report Processing", variant: "warning", icon: Loader2 },
   report_ready: { label: "Report Ready", variant: "success", icon: FileText },
   completed: { label: "Completed", variant: "default", icon: CheckCircle2 },
 }
@@ -135,46 +136,59 @@ const MOCK_TESTS: DashboardTest[] = [
   },
 ]
 
-const statCards = [
-  {
-    label: "Accepted",
-    count: MOCK_TESTS.length,
-    icon: ClipboardCheck,
-    color: "text-[var(--color-info)]",
-    bg: "bg-[var(--color-info)]/10",
-  },
-  {
-    label: "In Progress",
-    count: MOCK_TESTS.filter((t) => t.status === "in_session").length,
-    icon: Play,
-    color: "text-[var(--color-accent)]",
-    bg: "bg-[var(--color-accent)]/10",
-  },
-  {
-    label: "Processing",
-    count: MOCK_TESTS.filter((t) => t.status === "processing" || t.status === "uploading").length,
-    icon: Loader2,
-    color: "text-[var(--color-warning)]",
-    bg: "bg-[var(--color-warning)]/10",
-  },
-  {
-    label: "Completed",
-    count: MOCK_TESTS.filter((t) => t.status === "completed" || t.status === "report_ready").length,
-    icon: CheckCircle2,
-    color: "text-[var(--color-success)]",
-    bg: "bg-[var(--color-success)]/10",
-  },
-]
-
 const inProgressTest = MOCK_TESTS.find((t) => t.status === "in_session")
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [tests, setTests] = useState<DashboardTest[]>(MOCK_TESTS)
   const [expandedRow, setExpandedRow] = useState<string | null>(inProgressTest?.id ?? null)
+
+  useEffect(() => {
+    api.sessions.mine().then((sessions) => {
+      if (sessions && sessions.length > 0) {
+        const mapped: DashboardTest[] = sessions.map((s: any) => {
+          const statusMap: Record<string, TestStatus> = {
+            assigned: "not_started",
+            in_progress: "in_session",
+            uploading: "uploading",
+            processing: "processing",
+            completed: "report_ready",
+          }
+          const taskResults = s.taskResults || []
+          const studyTasks = s.study?.tasks || []
+          const completedCount = taskResults.filter((tr: any) => tr.completed).length
+          return {
+            id: s.id,
+            title: s.study?.name || "Untitled Study",
+            business: s.study?.org?.name || "Unknown",
+            acceptedDate: new Date(s.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+            status: statusMap[s.status] || "not_started",
+            tasksCompleted: completedCount,
+            tasksTotal: studyTasks.length,
+            tasks: studyTasks.map((t: any) => ({
+              name: t.title,
+              done: taskResults.some((tr: any) => tr.taskId === t.id && tr.completed),
+            })),
+            notes: "",
+          }
+        })
+        setTests(mapped)
+      }
+    }).catch(() => {})
+  }, [])
 
   function goToSession(testId: string) {
     navigate(`/tester/session/${testId}`)
   }
+
+  const currentInProgress = tests.find((t) => t.status === "in_session")
+
+  const statCards = [
+    { label: "Accepted", count: tests.length, icon: ClipboardCheck, color: "text-[var(--color-info)]", bg: "bg-[var(--color-info)]/10" },
+    { label: "In Progress", count: tests.filter((t) => t.status === "in_session").length, icon: Play, color: "text-[var(--color-accent)]", bg: "bg-[var(--color-accent)]/10" },
+    { label: "Processing", count: tests.filter((t) => t.status === "processing" || t.status === "uploading").length, icon: Loader2, color: "text-[var(--color-warning)]", bg: "bg-[var(--color-warning)]/10" },
+    { label: "Completed", count: tests.filter((t) => t.status === "completed" || t.status === "report_ready").length, icon: CheckCircle2, color: "text-[var(--color-success)]", bg: "bg-[var(--color-success)]/10" },
+  ]
 
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
@@ -209,7 +223,7 @@ export default function Dashboard() {
         </div>
 
         {/* Next Action Banner */}
-        {inProgressTest && (
+        {currentInProgress && (
           <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-accent)]/20 bg-gradient-to-r from-[var(--color-accent)]/[0.06] via-[var(--color-surface)] to-[var(--color-surface)]">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)]" />
             <div className="flex items-center justify-between p-5 pl-6">
@@ -222,14 +236,14 @@ export default function Dashboard() {
                     Recommended Action
                   </p>
                   <p className="text-sm text-[var(--color-text-primary)] font-medium">
-                    Continue your <span className="text-[var(--color-accent)]">{inProgressTest.title}</span> session
+                    Continue your <span className="text-[var(--color-accent)]">{currentInProgress.title}</span> session
                   </p>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    {inProgressTest.tasksCompleted}/{inProgressTest.tasksTotal} tasks completed
+                    {currentInProgress.tasksCompleted}/{currentInProgress.tasksTotal} tasks completed
                   </p>
                 </div>
               </div>
-              <Button className="gap-2" onClick={() => goToSession(inProgressTest!.id)}>
+              <Button className="gap-2" onClick={() => goToSession(currentInProgress.id)}>
                 Continue
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -243,7 +257,7 @@ export default function Dashboard() {
 
           <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] overflow-hidden">
             {/* Table Header */}
-            <div className="grid grid-cols-[1fr_120px_140px_180px_160px] gap-4 items-center px-5 py-3 bg-[var(--color-surface-elevated)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium border-b border-[var(--color-border)]">
+            <div className="grid grid-cols-[1fr_120px_140px_180px_200px] gap-4 items-center px-5 py-3 bg-[var(--color-surface-elevated)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium border-b border-[var(--color-border)]">
               <span>Study</span>
               <span>Accepted</span>
               <span>Status</span>
@@ -252,7 +266,7 @@ export default function Dashboard() {
             </div>
 
             {/* Table Rows */}
-            {MOCK_TESTS.map((test) => {
+            {tests.map((test) => {
               const isExpanded = expandedRow === test.id
               const config = STATUS_CONFIG[test.status]
               const progressPct = test.tasksTotal > 0 ? (test.tasksCompleted / test.tasksTotal) * 100 : 0
@@ -262,7 +276,7 @@ export default function Dashboard() {
                   {/* Main Row */}
                   <div
                     className={cn(
-                      "grid grid-cols-[1fr_120px_140px_180px_160px] gap-4 items-center px-5 py-4 transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)]/50",
+                      "grid grid-cols-[1fr_120px_140px_180px_200px] gap-4 items-center px-5 py-4 transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)]/50",
                       isExpanded && "bg-[var(--color-surface)]/80"
                     )}
                     onClick={() => setExpandedRow(isExpanded ? null : test.id)}
@@ -288,45 +302,44 @@ export default function Dashboard() {
                       </Badge>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
+                    <div className="space-y-1.5 min-w-0 overflow-hidden">
+                      <div className="text-xs">
                         <span className="text-[var(--color-text-secondary)]">
                           {test.tasksCompleted}/{test.tasksTotal} tasks
                         </span>
-                        <span className="text-[var(--color-text-muted)]">{Math.round(progressPct)}%</span>
                       </div>
-                      <Progress value={progressPct} className="h-1.5" />
+                      <Progress value={progressPct} className="h-1.5 max-w-[120px]" />
                     </div>
 
-                    <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                       {test.status === "not_started" && (
-                        <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
-                          <Play className="h-3 w-3" />
-                          Start
-                        </Button>
+                        <>
+                          <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
+                            <Play className="h-3 w-3" />
+                            Start
+                          </Button>
+                          <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
+                            <XCircle className="h-3 w-3" />
+                            Withdraw
+                          </Button>
+                        </>
                       )}
                       {test.status === "in_session" && (
-                        <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
-                          <Play className="h-3 w-3" />
-                          Continue
-                        </Button>
+                        <>
+                          <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => goToSession(test.id)}>
+                            <Play className="h-3 w-3" />
+                            Continue
+                          </Button>
+                          <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
+                            <XCircle className="h-3 w-3" />
+                            Withdraw
+                          </Button>
+                        </>
                       )}
                       {test.status === "report_ready" && (
                         <Button size="sm" variant="outline" className="gap-1 h-7 text-xs">
                           <Eye className="h-3 w-3" />
                           View Report
-                        </Button>
-                      )}
-                      {test.status === "completed" && (
-                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs">
-                          <Eye className="h-3 w-3" />
-                          Details
-                        </Button>
-                      )}
-                      {(test.status === "not_started" || test.status === "in_session") && (
-                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]">
-                          <XCircle className="h-3 w-3" />
-                          Withdraw
                         </Button>
                       )}
                     </div>

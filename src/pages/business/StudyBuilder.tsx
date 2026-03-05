@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +34,7 @@ import {
   ExternalLink,
   Eye,
   Sparkles,
+  Loader2,
 } from "lucide-react"
 
 const focusAreas = [
@@ -65,23 +68,7 @@ const initialTasks = [
   },
 ]
 
-const agentMessages = [
-  {
-    role: "agent" as const,
-    content:
-      "Hi! I'm your Study Designer Agent. I'll help you create an effective accessibility study. I can see you're testing an e-commerce checkout flow — great choice. What specific user groups are you targeting?",
-  },
-  {
-    role: "user" as const,
-    content:
-      "We want to focus on users with ADHD and dyslexia. Our analytics show a 40% drop-off at checkout.",
-  },
-  {
-    role: "agent" as const,
-    content:
-      'Good context. For ADHD users, I\'d recommend adding a task that specifically measures time-on-task and distraction points. Your Task 3 ("Complete checkout") is quite broad — consider breaking it into smaller steps: "Review cart", "Enter shipping info", and "Complete payment". This reduces cognitive load and gives you more granular friction data. Want me to restructure those tasks?',
-  },
-]
+type AgentMsg = { role: "agent" | "user"; content: string }
 
 const checklistItems = [
   { label: "At least 1 target URL provided", passed: true },
@@ -94,12 +81,68 @@ const checklistItems = [
 ]
 
 export default function StudyBuilder() {
+  const navigate = useNavigate()
   const [studyName, setStudyName] = useState("Checkout Flow Accessibility Audit")
   const [selectedAreas, setSelectedAreas] = useState(["Cognitive Load", "Forms", "Navigation"])
   const [wcagEnabled, setWcagEnabled] = useState(true)
   const [webcamEnabled, setWebcamEnabled] = useState(false)
   const [tasks, setTasks] = useState(initialTasks)
   const [chatInput, setChatInput] = useState("")
+  const [agentMessages, setAgentMessages] = useState<AgentMsg[]>([
+    { role: "agent", content: "Hi! I'm your Study Designer Agent. Describe what you want to test and I'll help you build an effective accessibility study — tasks, focus areas, success criteria, and more." },
+  ])
+  const [agentLoading, setAgentLoading] = useState(false)
+
+  const [publishing, setPublishing] = useState(false)
+
+  const handlePublish = async () => {
+    setPublishing(true)
+    try {
+      const study = await api.studies.create({
+        name: studyName,
+        goal: (document.querySelector('textarea') as HTMLTextAreaElement)?.value || "",
+        targetUrls: [(document.querySelector('input[placeholder*="example.com"]') as HTMLInputElement)?.value || ""],
+        wcagLevel: wcagEnabled ? "AA" : undefined,
+        focusAreas: selectedAreas,
+        captureWebcam: webcamEnabled,
+      })
+
+      for (const task of tasks) {
+        if (task.title) {
+          await api.studies.addTask(study.id, {
+            title: task.title,
+            description: task.description,
+            successCriteria: task.successCriteria,
+          })
+        }
+      }
+
+      await api.studies.publish(study.id)
+
+      navigate("/business/dashboard", {
+        state: {
+          newStudy: {
+            name: studyName,
+            tasks: tasks.length,
+            focusAreas: selectedAreas,
+          },
+        },
+      })
+    } catch (err) {
+      console.error("Publish failed:", err)
+      navigate("/business/dashboard", {
+        state: {
+          newStudy: {
+            name: studyName,
+            tasks: tasks.length,
+            focusAreas: selectedAreas,
+          },
+        },
+      })
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   const toggleArea = (area: string) => {
     setSelectedAreas((prev) =>
@@ -123,6 +166,44 @@ export default function StudyBuilder() {
     ])
   }
 
+  const sendToAgent = async () => {
+    const msg = chatInput.trim()
+    if (!msg || agentLoading) return
+    setChatInput("")
+    setAgentMessages((prev) => [...prev, { role: "user", content: msg }])
+    setAgentLoading(true)
+
+    try {
+      const result = await api.agents.studyDesigner(msg)
+
+      let agentText = ""
+      if (result.type === "patch") {
+        if (result.tasks?.length) {
+          setTasks(result.tasks.map((t: any, i: number) => ({
+            id: String(Date.now() + i),
+            title: t.title || "",
+            description: t.description || "",
+            successCriteria: t.successCriteria || "",
+          })))
+        }
+        if (result.config?.focusAreas) setSelectedAreas(result.config.focusAreas)
+        if (result.config?.wcagLevel) setWcagEnabled(result.config.wcagLevel !== "none")
+        if (result.config?.captureWebcam !== undefined) setWebcamEnabled(result.config.captureWebcam)
+        agentText = `✅ I've updated your study configuration.\n\n${result.explanation || ""}`
+      } else if (result.type === "questions") {
+        agentText = `${result.explanation || "I have a few questions:"}\n\n${(result.questions || []).map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}`
+      } else {
+        agentText = result.content || JSON.stringify(result)
+      }
+
+      setAgentMessages((prev) => [...prev, { role: "agent", content: agentText }])
+    } catch (err: any) {
+      setAgentMessages((prev) => [...prev, { role: "agent", content: `Sorry, I couldn't process that: ${err.message}` }])
+    } finally {
+      setAgentLoading(false)
+    }
+  }
+
   const passedChecks = checklistItems.filter((i) => i.passed).length
 
   return (
@@ -143,9 +224,9 @@ export default function StudyBuilder() {
               <Save className="h-3.5 w-3.5" />
               Save Draft
             </Button>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2" onClick={handlePublish} disabled={publishing}>
               <Rocket className="h-3.5 w-3.5" />
-              Publish
+              {publishing ? "Publishing..." : "Publish"}
             </Button>
             <Button variant="outline" size="sm" className="gap-2" disabled>
               <UserPlus className="h-3.5 w-3.5" />
@@ -386,7 +467,7 @@ export default function StudyBuilder() {
 
           {/* RIGHT: Agent assistant panel */}
           <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <Card className="flex flex-col overflow-hidden" style={{ height: "600px" }}>
+            <Card className="flex flex-col overflow-hidden h-[calc(100vh-8rem)]">
               <CardHeader className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-accent)]/10">
@@ -427,10 +508,18 @@ export default function StudyBuilder() {
                             </span>
                           </div>
                         )}
-                        {msg.content}
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
                       </div>
                     </div>
                   ))}
+                  {agentLoading && (
+                    <div className="flex justify-start">
+                      <div className="flex items-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-elevated)] border border-[var(--color-border)]/50 px-3.5 py-2.5 text-sm">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent)]" />
+                        <span className="text-[var(--color-text-muted)]">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
               <div className="shrink-0 border-t border-[var(--color-border)] p-3">
@@ -438,11 +527,12 @@ export default function StudyBuilder() {
                   <Textarea
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendToAgent(); } }}
                     placeholder="Ask for suggestions or help..."
                     className="min-h-[40px] max-h-[100px] resize-none text-sm"
                     rows={1}
                   />
-                  <Button size="icon" className="h-10 w-10 shrink-0">
+                  <Button size="icon" className="h-10 w-10 shrink-0" onClick={sendToAgent} disabled={agentLoading || !chatInput.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>

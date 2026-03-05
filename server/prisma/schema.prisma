@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    OrgMembership[]
+  studies    Study[]
+  jiraConfig JiraConfig?
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String // "business" | "tester"
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgMemberships OrgMembership[]
+  testerProfile  TesterProfile?
+  messages       Message[]
+  assignments    Assignment[]
+  sessions       Session[]
+  notifications  Notification[]
+}
+
+model OrgMembership {
+  id     String @id @default(cuid())
+  userId String
+  orgId  String
+  role   String // "admin" | "member"
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
+model TesterProfile {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  phone          String?
+  whatsappLinked Boolean @default(false)
+  devices        String? // JSON array
+  languages      String? // JSON array
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Study {
+  id            String  @id @default(cuid())
+  orgId         String
+  name          String
+  goal          String?
+  targetUrls    String? // JSON array
+  wcagLevel     String? // "AA" | "AAA"
+  focusAreas    String? // JSON array
+  captureScreen Boolean @default(true)
+  captureAudio  Boolean @default(true)
+  captureWebcam Boolean @default(false)
+  deviceType    String  @default("any")
+  timeEstimate  String?
+  language      String  @default("en")
+  status        String  @default("draft") // "draft" | "published" | "active" | "completed"
+  maxTesters    Int     @default(10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  tasks         StudyTask[]
+  publication   StudyPublication?
+  assignments   Assignment[]
+  sessions      Session[]
+  conversations Conversation[]
+  reports       Report[]
+}
+
+model StudyTask {
+  id              String @id @default(cuid())
+  studyId         String
+  title           String
+  description     String?
+  successCriteria String?
+  sortOrder       Int    @default(0)
+
+  study Study @relation(fields: [studyId], references: [id], onDelete: Cascade)
+}
+
+model StudyPublication {
+  id          String    @id @default(cuid())
+  studyId     String    @unique
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+
+  study Study @relation(fields: [studyId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id         String   @id @default(cuid())
+  studyId    String
+  testerId   String
+  status     String   @default("accepted") // "accepted" | "withdrawn"
+  acceptedAt DateTime @default(now())
+
+  study  Study @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  tester User  @relation(fields: [testerId], references: [id], onDelete: Cascade)
+
+  @@unique([studyId, testerId])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  studyId   String
+  testerId  String
+  status    String    @default("not_started") // "not_started" | "in_session" | "uploading" | "processing" | "report_ready" | "completed"
+  startedAt DateTime?
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  study       Study               @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  tester      User                @relation(fields: [testerId], references: [id], onDelete: Cascade)
+  events      SessionEvent[]
+  artifacts   Artifact[]
+  taskResults SessionTaskResult[]
+}
+
+model SessionTaskResult {
+  id        String  @id @default(cuid())
+  sessionId String
+  taskId    String
+  completed Boolean @default(false)
+  notes     String?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, taskId])
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  type      String
+  data      String? // JSON
+  timestamp DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id          String   @id @default(cuid())
+  sessionId   String
+  type        String // "screen_recording" | "audio" | "webcam" | "transcript" | "clip"
+  filename    String
+  mimeType    String?
+  sizeBytes   Int?
+  storagePath String
+  uploadedAt  DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  studyId   String?
+  sessionId String?
+  channel   String   @default("web") // "web" | "whatsapp"
+  agentType String? // "study_designer" | "facilitator" | "report" | "ticket"
+  createdAt DateTime @default(now())
+
+  study    Study?    @relation(fields: [studyId], references: [id], onDelete: SetNull)
+  messages Message[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // "user" | "agent" | "system"
+  content        String
+  senderId       String?
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  studyId    String
+  reportJson String? // JSON - full structured report
+  summary    String?
+  status     String   @default("generating") // "generating" | "ready"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  study    Study        @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  findings Finding[]
+  tickets  JiraTicket[]
+}
+
+model Finding {
+  id            String @id @default(cuid())
+  reportId      String
+  severity      String // "critical" | "high" | "medium" | "low"
+  title         String
+  description   String?
+  frequency     String?
+  confidence    Int?
+  evidenceCount Int    @default(0)
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model JiraTicket {
+  id                 String  @id @default(cuid())
+  reportId           String
+  title              String
+  description        String?
+  priority           String
+  labels             String? // JSON array
+  acceptanceCriteria String? // JSON array
+  selected           Boolean @default(false)
+  externalId         String?
+  externalUrl        String?
+  status             String  @default("draft") // "draft" | "created" | "synced"
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model JiraConfig {
+  id           String  @id @default(cuid())
+  orgId        String  @unique
+  accessToken  String?
+  refreshToken String?
+  siteUrl      String?
+  projectKey   String?
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // "report_ready" | "session_started" | "processing_done" | "study_published"
+  title     String
+  body      String?
+  channel   String   @default("web") // "web" | "whatsapp" | "email"
+  read      Boolean  @default(false)
+  data      String? // JSON
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
