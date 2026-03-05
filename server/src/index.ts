@@ -19,6 +19,8 @@ import notificationRoutes from "./routes/notifications.js";
 import internalToolRoutes from "./routes/internal/tools.js";
 import proxyRoutes from "./routes/proxy.js";
 import emotionRoutes from "./routes/emotions.js";
+import interactionRoutes from "./routes/interactions.js";
+import agentRoutes from "./routes/agents.js";
 
 const app = express();
 
@@ -41,6 +43,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/internal/tools", internalToolRoutes);
 app.use("/api/proxy", proxyRoutes);
 app.use("/api/emotions", emotionRoutes);
+app.use("/api/interactions", interactionRoutes);
+app.use("/api/agents", agentRoutes);
 
 app.use(errorHandler);
 

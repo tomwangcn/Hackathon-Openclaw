@@ -2,6 +2,7 @@ import { prisma } from "../db.js";
 import { appEvents } from "../events.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { emotionService } from "./emotion.js";
+import { interactionService } from "./interaction.js";
 
 export const reportService = {
   async generate(studyId: string) {
@@ -50,6 +51,20 @@ export const reportService = {
           }
         }
 
+        const interactionData = await Promise.all(
+          completedSessions.map(async (session) => {
+            const summary = await interactionService.getInteractionSummary(session.id);
+            return { sessionId: session.id, ...summary };
+          })
+        );
+
+        const totalRageClicks = interactionData.reduce((sum, d) => sum + (d.counts["rage_click"] || 0), 0);
+        const totalFreezes = interactionData.reduce((sum, d) => sum + (d.counts["freeze"] || 0), 0);
+        const totalMisclicks = interactionData.reduce((sum, d) => sum + (d.counts["misclick"] || 0), 0);
+        const avgFrictionScore = interactionData.length > 0
+          ? Math.round(interactionData.reduce((sum, d) => sum + d.frictionScore, 0) / interactionData.length)
+          : 0;
+
         await prisma.report.update({
           where: { id: report.id },
           data: {
@@ -64,6 +79,13 @@ export const reportService = {
                 averageEmotions: aggregateEmotions,
                 frictionMoments: allFrictionMoments,
                 perSession: emotionData,
+              },
+              interactionAnalysis: {
+                totalRageClicks,
+                totalFreezes,
+                totalMisclicks,
+                averageFrictionScore: avgFrictionScore,
+                perSession: interactionData,
               },
             }),
           },

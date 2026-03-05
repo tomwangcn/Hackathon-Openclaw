@@ -108,4 +108,41 @@ export const api = {
     finalize: (sessionId: string) =>
       request<any>(`/emotions/${sessionId}/finalize`, { method: "POST" }),
   },
+
+  agents: {
+    studyDesigner: (message: string, studyId?: string) =>
+      request<any>("/agents/study-designer", {
+        method: "POST",
+        body: JSON.stringify({ message, studyId }),
+      }),
+    facilitator: (data: {
+      sessionId: string;
+      message?: string;
+      currentTask?: { title: string; description: string } | null;
+      timeOnTaskSeconds?: number;
+      completedTasks?: number;
+      totalTasks?: number;
+    }) =>
+      request<any>("/agents/facilitator", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    report: (studyId: string) =>
+      request<any>("/agents/report", {
+        method: "POST",
+        body: JSON.stringify({ studyId }),
+      }),
+  },
+
+  interactions: {
+    sendBatch: (sessionId: string, events: any[]) =>
+      request<any>(`/interactions/${sessionId}/batch`, {
+        method: "POST",
+        body: JSON.stringify({ events }),
+      }),
+    timeline: (sessionId: string) => request<any[]>(`/interactions/${sessionId}/timeline`),
+    summary: (sessionId: string) => request<any>(`/interactions/${sessionId}/summary`),
+    finalize: (sessionId: string) =>
+      request<any>(`/interactions/${sessionId}/finalize`, { method: "POST" }),
+  },
 };

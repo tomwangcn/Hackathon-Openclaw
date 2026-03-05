@@ -448,15 +448,31 @@ function StudyListView() {
 }
 
 function ReportDetailView() {
+  const { id: studyId } = useParams()
   const [selectedTickets, setSelectedTickets] = useState<Record<string, boolean>>(
     Object.fromEntries(jiraTickets.map((t) => [t.id, t.selected]))
   )
+  const [generating, setGenerating] = useState(false)
+  const [aiReport, setAiReport] = useState<any>(null)
 
   const toggleTicket = (id: string) => {
     setSelectedTickets((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   const selectedCount = Object.values(selectedTickets).filter(Boolean).length
+
+  const generateAiReport = async () => {
+    if (!studyId) return
+    setGenerating(true)
+    try {
+      const result = await api.agents.report(studyId)
+      setAiReport(result)
+    } catch (err: any) {
+      console.error("Report generation failed:", err)
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
@@ -478,13 +494,69 @@ function ReportDetailView() {
             </h1>
             <Badge variant="default">{studyMeta.status}</Badge>
           </div>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Created {studyMeta.created} · {studyMeta.sessionsTotal} of {studyMeta.targetSessions} sessions completed
-          </p>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Created {studyMeta.created} · {studyMeta.sessionsTotal} of {studyMeta.targetSessions} sessions completed
+            </p>
+            <Button size="sm" className="gap-2" onClick={generateAiReport} disabled={generating}>
+              <Sparkles className="h-3.5 w-3.5" />
+              {generating ? "Generating AI Report..." : "Generate AI Report"}
+            </Button>
+          </div>
           <Progress
             value={(studyMeta.sessionsTotal / studyMeta.targetSessions) * 100}
             className="mt-3 h-1.5 max-w-sm"
           />
+
+          {aiReport && (
+            <Card className="mt-6">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[var(--color-accent)]" />
+                  <CardTitle className="text-base">AI-Generated Report</CardTitle>
+                  {aiReport.overallScore !== undefined && (
+                    <Badge variant={aiReport.overallScore >= 70 ? "success" : aiReport.overallScore >= 40 ? "warning" : "destructive"}>
+                      Score: {aiReport.overallScore}/100
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{aiReport.summary}</p>
+                {aiReport.findings?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Findings ({aiReport.findings.length})</h4>
+                    <div className="space-y-2">
+                      {aiReport.findings.slice(0, 5).map((f: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <Badge variant={f.severity === "critical" ? "destructive" : f.severity === "high" ? "warning" : "secondary"} className="shrink-0 mt-0.5">
+                            {f.severity}
+                          </Badge>
+                          <div>
+                            <span className="font-medium text-[var(--color-text-primary)]">{f.title}</span>
+                            {f.recommendation && <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{f.recommendation}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiReport.recommendations?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Recommendations</h4>
+                    <div className="space-y-1.5">
+                      {aiReport.recommendations.map((r: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <Badge variant="outline" className="shrink-0 mt-0.5">{r.priority}</Badge>
+                          <span className="text-[var(--color-text-secondary)]">{r.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Tabs */}

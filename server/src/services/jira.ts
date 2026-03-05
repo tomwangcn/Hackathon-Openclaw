@@ -30,7 +30,7 @@ export const jiraService = {
     });
 
     // V1 stub: In production, call Jira REST API to create issues.
-    const results = tickets.map((ticket) => {
+    const results = tickets.map((ticket: any) => {
       const mockKey = `${jiraConfig?.projectKey || "PROJ"}-${Math.floor(Math.random() * 9000) + 1000}`;
       return {
         ticketId: ticket.id,

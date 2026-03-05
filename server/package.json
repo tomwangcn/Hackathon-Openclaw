@@ -20,7 +20,8 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "openai": "^6.25.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
