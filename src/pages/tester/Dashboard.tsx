@@ -29,6 +29,7 @@ type TestStatus = "not_started" | "in_session" | "uploading" | "processing" | "r
 
 interface DashboardTest {
   id: string
+  studyId: string
   title: string
   business: string
   acceptedDate: string
@@ -42,15 +43,16 @@ interface DashboardTest {
 const STATUS_CONFIG: Record<TestStatus, { label: string; variant: "secondary" | "info" | "warning" | "success" | "default" | "outline"; icon: typeof Play }> = {
   not_started: { label: "Not Started", variant: "secondary", icon: CircleDot },
   in_session: { label: "In Session", variant: "info", icon: Play },
-  uploading: { label: "Uploading", variant: "warning", icon: Loader2 },
+  uploading: { label: "Report Processing", variant: "warning", icon: Loader2 },
   processing: { label: "Report Processing", variant: "warning", icon: Loader2 },
   report_ready: { label: "Report Ready", variant: "success", icon: FileText },
-  completed: { label: "Completed", variant: "default", icon: CheckCircle2 },
+  completed: { label: "Finished", variant: "default", icon: CheckCircle2 },
 }
 
 const MOCK_TESTS: DashboardTest[] = [
   {
     id: "d1",
+    studyId: "",
     title: "NHS Digital Portal Navigation Audit",
     business: "NHS England",
     acceptedDate: "28 Feb 2026",
@@ -68,6 +70,7 @@ const MOCK_TESTS: DashboardTest[] = [
   },
   {
     id: "d2",
+    studyId: "",
     title: "Checkout Flow Usability Study",
     business: "Ocado Technology",
     acceptedDate: "25 Feb 2026",
@@ -85,6 +88,7 @@ const MOCK_TESTS: DashboardTest[] = [
   },
   {
     id: "d3",
+    studyId: "",
     title: "Student Dashboard Cognitive Load Test",
     business: "Open University",
     acceptedDate: "20 Feb 2026",
@@ -103,6 +107,7 @@ const MOCK_TESTS: DashboardTest[] = [
   },
   {
     id: "d4",
+    studyId: "",
     title: "GOV.UK Benefits Application Form",
     business: "Government Digital Service",
     acceptedDate: "15 Feb 2026",
@@ -120,6 +125,7 @@ const MOCK_TESTS: DashboardTest[] = [
   },
   {
     id: "d5",
+    studyId: "",
     title: "SaaS Onboarding Wizard Evaluation",
     business: "Notion Labs",
     acceptedDate: "10 Feb 2026",
@@ -148,17 +154,19 @@ export default function Dashboard() {
       if (sessions && sessions.length > 0) {
         const mapped: DashboardTest[] = sessions.map((s: any) => {
           const statusMap: Record<string, TestStatus> = {
-            assigned: "not_started",
-            in_progress: "in_session",
+            not_started: "not_started",
+            in_session: "in_session",
             uploading: "uploading",
             processing: "processing",
-            completed: "report_ready",
+            report_ready: "report_ready",
+            completed: "completed",
           }
           const taskResults = s.taskResults || []
           const studyTasks = s.study?.tasks || []
           const completedCount = taskResults.filter((tr: any) => tr.completed).length
           return {
             id: s.id,
+            studyId: s.studyId,
             title: s.study?.name || "Untitled Study",
             business: s.study?.org?.name || "Unknown",
             acceptedDate: new Date(s.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
@@ -337,7 +345,7 @@ export default function Dashboard() {
                         </>
                       )}
                       {test.status === "report_ready" && (
-                        <Button size="sm" variant="outline" className="gap-1 h-7 text-xs">
+                        <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={() => navigate(`/tester/session/${test.id}/report`)}>
                           <Eye className="h-3 w-3" />
                           View Report
                         </Button>

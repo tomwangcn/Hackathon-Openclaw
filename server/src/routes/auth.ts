@@ -2,6 +2,7 @@ import { Router } from "express";
 import { identityService } from "../services/identity.js";
 import { authenticate } from "../middleware/auth.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
+import { prisma } from "../db.js";
 import type { AuthRequest } from "../types.js";
 
 const router = Router();
@@ -48,6 +49,35 @@ router.get("/me", authenticate, async (req: AuthRequest, res, next) => {
   try {
     const user = await identityService.getUser(req.user!.userId);
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/onboard — save ND profile
+router.post("/onboard", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { ndCategories, diagnosticStatus, assistiveTech, devices } = req.body;
+    const userId = req.user!.userId;
+
+    await prisma.testerProfile.upsert({
+      where: { userId },
+      update: {
+        ndCategories: JSON.stringify(ndCategories || []),
+        diagnosticStatus: diagnosticStatus || null,
+        assistiveTech: JSON.stringify(assistiveTech || []),
+        devices: JSON.stringify(devices || []),
+      },
+      create: {
+        userId,
+        ndCategories: JSON.stringify(ndCategories || []),
+        diagnosticStatus: diagnosticStatus || null,
+        assistiveTech: JSON.stringify(assistiveTech || []),
+        devices: JSON.stringify(devices || []),
+      },
+    });
+
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

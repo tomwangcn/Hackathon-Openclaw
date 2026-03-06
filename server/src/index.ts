@@ -21,6 +21,7 @@ import proxyRoutes from "./routes/proxy.js";
 import emotionRoutes from "./routes/emotions.js";
 import interactionRoutes from "./routes/interactions.js";
 import agentRoutes from "./routes/agents.js";
+import telegramRoutes from "./routes/telegram.js";
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use("/api/proxy", proxyRoutes);
 app.use("/api/emotions", emotionRoutes);
 app.use("/api/interactions", interactionRoutes);
 app.use("/api/agents", agentRoutes);
+app.use("/api/telegram", telegramRoutes);
 
 app.use(errorHandler);
 

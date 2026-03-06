@@ -33,6 +33,7 @@ import {
   Bug,
   ChevronRight,
 } from "lucide-react"
+import { SdgBadge } from "@/components/SdgBadge"
 
 // --- Studies list data ---
 
@@ -764,6 +765,10 @@ function ReportDetailView() {
 
           {/* ====== FINDINGS TAB ====== */}
           <TabsContent value="findings" className="space-y-4">
+            <div className="flex gap-3 mb-4">
+              <SdgBadge sdg={10} compact />
+              <SdgBadge sdg={8} compact />
+            </div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-[var(--color-text-secondary)]">
                 {findings.length} findings detected across all sessions

@@ -70,11 +70,16 @@ export const conversationService = {
     });
   },
 
-  async findOrCreate(studyId: string, agentType: AgentType) {
-    const existing = await prisma.conversation.findFirst({
-      where: { studyId, agentType },
-    });
+  async findOrCreate(entityId: string, agentType: AgentType, entityType: "study" | "session" = "study") {
+    const where = entityType === "session"
+      ? { sessionId: entityId, agentType }
+      : { studyId: entityId, agentType };
+    const existing = await prisma.conversation.findFirst({ where });
     if (existing) return existing;
-    return this.create({ studyId, agentType });
+    return this.create(
+      entityType === "session"
+        ? { sessionId: entityId, agentType }
+        : { studyId: entityId, agentType }
+    );
   },
 };

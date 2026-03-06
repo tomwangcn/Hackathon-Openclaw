@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { SdgBadge } from "@/components/SdgBadge"
 import {
   Monitor,
   Brain,
@@ -418,6 +419,18 @@ export default function Landing() {
           <div className="mt-8">
             <p className="text-sm font-medium">Alex Mercer</p>
             <p className="text-xs font-light text-[var(--color-text-muted)] mt-0.5">Head of Accessibility, Ocado Technology</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ SDG ALIGNMENT ═══════════════ */}
+      <section className="py-16 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">Aligned with UN Sustainable Development Goals</h2>
+          <p className="text-zinc-400 mb-8">Every test contributes to a more inclusive digital world</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto">
+            <SdgBadge sdg={10} />
+            <SdgBadge sdg={8} />
           </div>
         </div>
       </section>

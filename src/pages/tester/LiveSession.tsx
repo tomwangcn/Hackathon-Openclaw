@@ -66,6 +66,7 @@ export default function LiveSession() {
   useEffect(() => {
     if (!sessionId) return
     setLoading(true)
+    api.sessions.start(sessionId).catch(() => {}) // mark in_session
     api.sessions.get(sessionId)
       .then((session) => {
         setStudyName(session.study?.name || "Untitled Study")
@@ -165,7 +166,13 @@ export default function LiveSession() {
   }
 
   function markComplete(taskId: string) {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, done: true } : t)))
+    setTasks((prev) => {
+      const updated = prev.map((t) => (t.id === taskId ? { ...t, done: true } : t))
+      if (updated.every((t) => t.done)) {
+        setTimeout(() => handleEndSession(), 1200)
+      }
+      return updated
+    })
     if (sessionId) {
       api.sessions.updateTask(sessionId, taskId, true).catch(() => {})
     }
@@ -206,7 +213,8 @@ export default function LiveSession() {
           time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
         }])
       }
-    } catch {
+    } catch (err) {
+      console.error("[latch-guide] facilitator request failed:", err)
       setChat((prev) => [...prev, {
         id: Date.now() + Math.random(),
         sender: "agent",
@@ -219,6 +227,7 @@ export default function LiveSession() {
   async function handleEndSession() {
     if (sessionId) {
       await Promise.all([
+        api.sessions.end(sessionId).catch(() => {}),
         api.emotions.finalize(sessionId).catch(() => {}),
         flushInteractions(),
         api.interactions.finalize(sessionId).catch(() => {}),
@@ -226,7 +235,7 @@ export default function LiveSession() {
     }
     closePip()
     webcamStream?.getTracks().forEach((t) => t.stop())
-    navigate("/tester/dashboard")
+    navigate(`/tester/session/${sessionId}/feedback`)
   }
 
   // The controls panel (webcam + guide + tasks) — rendered either in PiP window or as floating panels
@@ -393,7 +402,7 @@ export default function LiveSession() {
           </div>
 
           {/* Fallback: floating webcam */}
-          <div className="fixed bottom-4 left-4 z-[100]">
+          <div className="fixed bottom-4 right-4 z-[100]">
             <WebcamPip
               stream={webcamStream}
               cameraOn={cameraOn}

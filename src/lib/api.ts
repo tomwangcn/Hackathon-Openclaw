@@ -61,7 +61,7 @@ export const api = {
 
   marketplace: {
     list: (filters?: Record<string, string>) => {
-      const params = new URLSearchParams(filters).toString();
+      const params = filters ? new URLSearchParams(filters).toString() : "";
       return request<any[]>(`/marketplace${params ? `?${params}` : ""}`);
     },
     accept: (studyId: string) =>

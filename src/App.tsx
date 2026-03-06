@@ -11,6 +11,9 @@ import Reports from "@/pages/business/Reports"
 import TesterDashboard from "@/pages/tester/Dashboard"
 import Marketplace from "@/pages/tester/Marketplace"
 import LiveSession from "@/pages/tester/LiveSession"
+import Onboarding from "@/pages/tester/Onboarding"
+import SessionFeedback from "@/pages/tester/SessionFeedback"
+import SessionReport from "@/pages/tester/SessionReport"
 
 function App() {
   return (
@@ -37,9 +40,12 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<TesterDashboard />} />
             <Route path="marketplace" element={<Marketplace />} />
+            <Route path="onboarding" element={<Onboarding />} />
           </Route>
 
           <Route path="/tester/session/:id" element={<LiveSession />} />
+          <Route path="/tester/session/:id/feedback" element={<SessionFeedback />} />
+          <Route path="/tester/session/:id/report" element={<SessionReport />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
