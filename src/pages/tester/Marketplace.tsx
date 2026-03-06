@@ -36,6 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { SdgBadge } from "@/components/SdgBadge"
 
 type CaptureType = "screen" | "audio" | "webcam"
 type FocusArea = "Navigation" | "Forms" | "Reading" | "Cognitive Load" | "Motor" | "Visual"
@@ -254,45 +255,62 @@ export default function Marketplace() {
   const [deviceFilter, setDeviceFilter] = useState<string>("all")
   const [selectedTest, setSelectedTest] = useState<MockTest | null>(null)
   const [allTests, setAllTests] = useState<MockTest[]>(MOCK_TESTS)
+  const [acceptedStudyIds, setAcceptedStudyIds] = useState<Set<string>>(new Set())
   const [accepting, setAccepting] = useState(false)
+  const [acceptError, setAcceptError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.marketplace.list().then((apiStudies) => {
-      if (apiStudies && apiStudies.length > 0) {
-        const mapped: MockTest[] = apiStudies.map((s: any) => ({
-          id: s.id,
-          title: s.name,
-          business: s.org?.name || "Unknown",
-          description: s.goal || "",
-          category: (s.focusAreas as string[])?.[0] || "General",
-          duration: s.estimatedMinutes || 30,
-          capture: [
-            "screen" as CaptureType,
-            ...(s.captureAudio ? ["audio" as CaptureType] : []),
-            ...(s.captureWebcam ? ["webcam" as CaptureType] : []),
-          ],
-          focusAreas: (s.focusAreas || []) as FocusArea[],
-          reward: s.reward ?? 25,
-          tasks: (s.tasks || []).map((t: any) => t.title),
-          consent: ["Screen recording of the testing session"],
-          privacy: "Data processed under GDPR guidelines.",
-          retention: "90 days",
-          deviceReq: "Desktop",
-        }))
-        setAllTests([...mapped, ...MOCK_TESTS])
-      }
-    }).catch(() => {})
+    try {
+      api.marketplace.list()
+        .then((apiStudies) => {
+          if (apiStudies && apiStudies.length > 0) {
+            const mapped: MockTest[] = apiStudies.map((s: any) => ({
+              id: s.id,
+              title: s.name,
+              business: s.org?.name || "Unknown",
+              description: s.goal || "",
+              category: (s.focusAreas as string[])?.[0] || "General",
+              duration: s.estimatedMinutes || 30,
+              capture: [
+                "screen" as CaptureType,
+                ...(s.captureAudio ? ["audio" as CaptureType] : []),
+                ...(s.captureWebcam ? ["webcam" as CaptureType] : []),
+              ],
+              focusAreas: (s.focusAreas || []) as FocusArea[],
+              reward: s.reward ?? 25,
+              tasks: (s.tasks || []).map((t: any) => t.title),
+              consent: ["Screen recording of the testing session"],
+              privacy: "Data processed under GDPR guidelines.",
+              retention: "90 days",
+              deviceReq: "Desktop",
+            }))
+            setAllTests(mapped)
+          }
+        })
+        .catch(() => {})
+    } catch {}
+
+    try {
+      api.sessions.mine()
+        .then((sessions: any[]) => {
+          if (sessions?.length) {
+            setAcceptedStudyIds(new Set(sessions.map((s: any) => s.studyId)))
+          }
+        })
+        .catch(() => {})
+    } catch {}
   }, [])
 
   const handleAccept = async (test: MockTest) => {
     setAccepting(true)
+    setAcceptError(null)
     try {
       await api.marketplace.accept(test.id)
+      setAcceptedStudyIds((prev) => new Set([...prev, test.id]))
       setSelectedTest(null)
       navigate("/tester/dashboard")
-    } catch {
-      setSelectedTest(null)
-      navigate(`/tester/session/${test.id}`)
+    } catch (err: any) {
+      setAcceptError(err?.message || "Failed to accept study. Please try again.")
     } finally {
       setAccepting(false)
     }
@@ -401,7 +419,7 @@ export default function Marketplace() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((test) => (
-            <TestCard key={test.id} test={test} onViewDetails={() => setSelectedTest(test)} />
+            <TestCard key={test.id} test={test} accepted={acceptedStudyIds.has(test.id)} onViewDetails={() => setSelectedTest(test)} />
           ))}
         </div>
 
@@ -522,18 +540,30 @@ export default function Marketplace() {
               </div>
             </ScrollArea>
 
-            <DialogFooter className="flex-row items-center justify-between border-t border-[var(--color-border)] pt-4 mt-2">
-              <div className="flex items-center gap-1.5">
-                <PoundSterling className="h-5 w-5 text-[var(--color-accent)]" />
-                <span className="text-xl font-display font-bold text-[var(--color-text-primary)]">
-                  £{selectedTest.reward}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)] ml-1">reward</span>
+            <DialogFooter className="flex-col gap-2 border-t border-[var(--color-border)] pt-4 mt-2">
+              {acceptError && (
+                <p className="text-sm text-[var(--color-danger)] text-center">{acceptError}</p>
+              )}
+              <div className="flex flex-row items-center justify-between w-full">
+                <div className="flex items-center gap-1.5">
+                  <PoundSterling className="h-5 w-5 text-[var(--color-accent)]" />
+                  <span className="text-xl font-display font-bold text-[var(--color-text-primary)]">
+                    £{selectedTest.reward}
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)] ml-1">reward</span>
+                </div>
+                {acceptedStudyIds.has(selectedTest.id) ? (
+                  <Button size="lg" variant="outline" className="gap-2" disabled>
+                    <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />
+                    Already Accepted
+                  </Button>
+                ) : (
+                  <Button size="lg" className="gap-2" disabled={accepting} onClick={() => handleAccept(selectedTest)}>
+                    {accepting ? "Accepting..." : "Accept Test"}
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <Button size="lg" className="gap-2" disabled={accepting} onClick={() => handleAccept(selectedTest)}>
-                {accepting ? "Accepting..." : "Accept Test"}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
             </DialogFooter>
           </DialogContent>
         )}
@@ -542,7 +572,7 @@ export default function Marketplace() {
   )
 }
 
-function TestCard({ test, onViewDetails }: { test: MockTest; onViewDetails: () => void }) {
+function TestCard({ test, accepted, onViewDetails }: { test: MockTest; accepted: boolean; onViewDetails: () => void }) {
   return (
     <Card className="group relative overflow-hidden transition-all duration-300 hover:border-[var(--color-text-muted)]/50 hover:shadow-[0_8px_40px_rgba(0,212,170,0.06)] hover:-translate-y-0.5">
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-accent)]/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
@@ -554,9 +584,19 @@ function TestCard({ test, onViewDetails }: { test: MockTest; onViewDetails: () =
             <span className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wider">
               {test.business}
             </span>
-            <Badge variant="outline" className="text-[10px] px-2 py-0">
-              {test.category}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <SdgBadge sdg={10} compact />
+              {accepted ? (
+                <Badge variant="outline" className="text-[10px] px-2 py-0 text-[var(--color-success)] border-[var(--color-success)]/40">
+                  <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                  Accepted
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-2 py-0">
+                  {test.category}
+                </Badge>
+              )}
+            </div>
           </div>
           <h3 className="font-display font-semibold text-[var(--color-text-primary)] leading-snug line-clamp-1">
             {test.title}

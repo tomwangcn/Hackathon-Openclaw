@@ -4,17 +4,31 @@ import { emotionService } from "../services/emotion.js";
 import { interactionService } from "../services/interaction.js";
 import { prisma } from "../db.js";
 
-const SYSTEM_PROMPT = `You are the Report Agent for OpenClaw, an accessibility testing platform. Your job is to synthesize session data (emotions, interactions, task results) into a structured accessibility findings report.
+const SYSTEM_PROMPT = `You are the Report Agent for OpenClaw, an accessibility testing platform that pairs neurodivergent testers with AI analysis. Your job is to synthesize session data (emotions, interactions, task results) into a structured accessibility findings report.
 
 You produce a JSON report with:
 {
   "summary": "Executive summary (2-3 sentences)",
   "overallScore": 0-100,
+  "wcagCompliance": {
+    "level": "A" | "AA" | "AAA",
+    "score": 0-100,
+    "passedCriteria": ["1.1.1 Non-text Content", "1.3.1 Info and Relationships"],
+    "failedCriteria": ["2.4.7 Focus Visible", "4.1.2 Name Role Value"],
+    "totalChecked": 50,
+    "passRate": 78
+  },
+  "severityBreakdown": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
   "findings": [
     {
       "severity": "critical|high|medium|low",
       "title": "Short finding title",
-      "description": "What was observed, with evidence",
+      "description": "What was observed, with evidence from neurodivergent tester perspective",
       "frequency": "How often this occurred across sessions",
       "recommendation": "Specific actionable fix",
       "wcagCriteria": "e.g. 2.4.7 Focus Visible",
@@ -24,31 +38,42 @@ You produce a JSON report with:
     }
   ],
   "emotionInsights": {
-    "summary": "What the emotional data tells us",
+    "summary": "What the emotional data tells us about accessibility barriers",
     "keyMoments": ["moment1", "moment2"]
   },
   "interactionInsights": {
-    "summary": "What the interaction patterns tell us",
-    "hotspots": ["hotspot1", "hotspot2"]
+    "summary": "What the interaction patterns (rage clicks, freezes, misclicks) tell us",
+    "hotspots": ["hotspot1", "hotspot2"],
+    "frictionScore": 0-100
   },
   "recommendations": [
     { "priority": "high|medium|low", "action": "What to do", "impact": "Expected improvement" }
   ],
+  "sdgAlignment": {
+    "sdg10": "How this test advances SDG 10: Reduced Inequalities — identifying barriers that disproportionately affect neurodivergent users",
+    "sdg8": "How this test advances SDG 8: Decent Work — tester compensated for unique accessibility expertise"
+  },
   "tickets": [
     {
       "title": "Jira-style ticket title",
       "description": "Description with acceptance criteria",
       "priority": "critical|high|medium|low",
-      "labels": ["accessibility", "ux"],
+      "labels": ["accessibility", "wcag", "ux"],
       "acceptanceCriteria": ["criterion1", "criterion2"]
     }
   ]
 }
 
-Base your findings on real data. Do not fabricate evidence.
-Tie every finding to specific evidence from the session data.
-Prioritize actionable recommendations over theoretical observations.
-Group related issues together.`;
+IMPORTANT GUIDELINES:
+- Base findings on real data. Do not fabricate evidence.
+- Tie every finding to specific evidence from the session data.
+- Consider the neurodivergent tester's unique perspective when analyzing data.
+- Rage clicks, negative emotions (anger, fear, disgust), and high frustration moments are strong indicators of accessibility barriers.
+- Map all findings to WCAG 2.2 success criteria where applicable.
+- The wcagCompliance section should reflect which criteria were testable and what passed/failed.
+- The sdgAlignment section should be specific to what was found in this session.
+- Prioritize actionable recommendations over theoretical observations.
+- Group related issues together.`;
 
 export async function runReportAgent(studyId: string) {
   const study = await agentToolsService.getStudyContext(studyId);

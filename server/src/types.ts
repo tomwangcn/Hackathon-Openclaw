@@ -15,7 +15,7 @@ export type SessionStatus = "not_started" | "in_session" | "uploading" | "proces
 export type Severity = "critical" | "high" | "medium" | "low";
 export type OrgRole = "admin" | "member";
 export type UserRole = "business" | "tester";
-export type Channel = "web" | "whatsapp" | "email";
+export type Channel = "web" | "telegram" | "email";
 export type AgentType = "study_designer" | "facilitator" | "report" | "ticket";
 
 export type AppEvent =

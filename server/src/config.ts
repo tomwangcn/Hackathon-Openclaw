@@ -23,12 +23,26 @@ export const config = {
     clientSecret: process.env.JIRA_CLIENT_SECRET,
   },
 
-  whatsapp: {
-    apiToken: process.env.WHATSAPP_API_TOKEN,
-    phoneId: process.env.WHATSAPP_PHONE_ID,
-  },
-
   redis: {
     url: process.env.REDIS_URL,
   },
+
+  openclaw: {
+    gatewayUrl: process.env.OPENCLAW_GATEWAY_URL,
+    hooksToken: process.env.OPENCLAW_HOOKS_TOKEN,
+    model: process.env.OPENCLAW_MODEL,
+  },
+
+  flock: {
+    apiKey: process.env.FLOCK_API_KEY,
+    apiUrl: process.env.FLOCK_API_URL || "https://api.flock.io",
+  },
+
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN,
+    webhookUrl: process.env.TELEGRAM_WEBHOOK_URL,
+    botUsername: process.env.TELEGRAM_BOT_USERNAME,
+  },
+
+  appUrl: process.env.APP_URL || "http://localhost:5173",
 } as const;

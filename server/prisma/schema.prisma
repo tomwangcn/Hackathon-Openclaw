@@ -27,12 +27,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orgMemberships OrgMembership[]
-  testerProfile  TesterProfile?
-  messages       Message[]
-  assignments    Assignment[]
-  sessions       Session[]
-  notifications  Notification[]
+  orgMemberships   OrgMembership[]
+  testerProfile    TesterProfile?
+  messages         Message[]
+  assignments      Assignment[]
+  sessions         Session[]
+  notifications    Notification[]
+  jobNotifications JobNotification[]
 }
 
 model OrgMembership {
@@ -48,12 +49,16 @@ model OrgMembership {
 }
 
 model TesterProfile {
-  id             String  @id @default(cuid())
-  userId         String  @unique
-  phone          String?
-  whatsappLinked Boolean @default(false)
-  devices        String? // JSON array
-  languages      String? // JSON array
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  phone            String?
+  telegramChatId   String?
+  telegramLinked   Boolean @default(false)
+  ndCategories     String? // JSON array e.g. ["adhd","dyslexia"]
+  assistiveTech    String? // JSON array e.g. ["screen_reader"]
+  diagnosticStatus String? // "formal" | "self" | "awaiting" | "prefer_not"
+  devices          String? // JSON array
+  languages        String? // JSON array
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -79,13 +84,14 @@ model Study {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  tasks         StudyTask[]
-  publication   StudyPublication?
-  assignments   Assignment[]
-  sessions      Session[]
-  conversations Conversation[]
-  reports       Report[]
+  org               Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  tasks             StudyTask[]
+  publication       StudyPublication?
+  assignments       Assignment[]
+  sessions          Session[]
+  conversations     Conversation[]
+  reports           Report[]
+  jobNotifications  JobNotification[]
 }
 
 model StudyTask {
@@ -131,11 +137,15 @@ model Session {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  testerComment  String?
+  testerApproved Boolean @default(false)
+
   study       Study               @relation(fields: [studyId], references: [id], onDelete: Cascade)
   tester      User                @relation(fields: [testerId], references: [id], onDelete: Cascade)
   events      SessionEvent[]
   artifacts   Artifact[]
   taskResults SessionTaskResult[]
+  feedback    SessionFeedback?
 }
 
 model SessionTaskResult {
@@ -177,7 +187,7 @@ model Conversation {
   id        String   @id @default(cuid())
   studyId   String?
   sessionId String?
-  channel   String   @default("web") // "web" | "whatsapp"
+  channel   String   @default("web") // "web" | "telegram"
   agentType String? // "study_designer" | "facilitator" | "report" | "ticket"
   createdAt DateTime @default(now())
 
@@ -258,10 +268,38 @@ model Notification {
   type      String // "report_ready" | "session_started" | "processing_done" | "study_published"
   title     String
   body      String?
-  channel   String   @default("web") // "web" | "whatsapp" | "email"
+  channel   String   @default("web") // "web" | "telegram" | "email"
   read      Boolean  @default(false)
   data      String? // JSON
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model JobNotification {
+  id          String    @id @default(cuid())
+  studyId     String
+  testerId    String
+  channel     String    @default("telegram")
+  status      String    @default("sent") // "sent" | "accepted" | "declined" | "expired"
+  messageId   String?
+  sessionId   String?
+  sentAt      DateTime  @default(now())
+  respondedAt DateTime?
+
+  study  Study @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  tester User  @relation(fields: [testerId], references: [id], onDelete: Cascade)
+}
+
+model SessionFeedback {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  testerId    String
+  rating      Int
+  feedback    String?
+  hardestArea String?
+  feeling     String?
+  createdAt   DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }

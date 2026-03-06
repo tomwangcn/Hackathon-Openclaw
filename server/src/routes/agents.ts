@@ -37,7 +37,7 @@ router.post("/facilitator", async (req: AuthRequest, res, next) => {
       return;
     }
 
-    const conv = await conversationService.findOrCreate(sessionId, "facilitator");
+    const conv = await conversationService.findOrCreate(sessionId, "facilitator", "session");
 
     const result = await runLiveFacilitator({
       sessionId,

@@ -3,6 +3,8 @@ import { sessionService } from "./session.js";
 import { notificationService } from "./notification.js";
 import { processingService } from "./processing.js";
 import { prisma } from "../db.js";
+import { sendJobOffer, sendCompletionNotice } from "../lib/telegram.js";
+import { runReportAgent } from "../agents/reportAgent.js";
 
 export function initOrchestrator() {
   appEvents.onApp("STUDY_PUBLISHED", async (event) => {
@@ -12,6 +14,45 @@ export function initOrchestrator() {
     });
     if (!study) return;
     console.log(`[orchestrator] Study published: ${study.name} (${event.studyId})`);
+
+    // Send Telegram notifications to linked testers
+    try {
+      const testers = await prisma.testerProfile.findMany({
+        where: { telegramLinked: true, telegramChatId: { not: null } },
+        include: { user: true },
+      });
+
+      for (const tester of testers) {
+        const existing = await prisma.jobNotification.findFirst({
+          where: { studyId: event.studyId, testerId: tester.userId },
+        });
+        if (existing) continue;
+
+        try {
+          const { messageId } = await sendJobOffer({
+            chatId: tester.telegramChatId!,
+            testerName: tester.user.name,
+            studyName: study.name,
+            orgName: study.org?.name || "Unknown",
+            estimatedDuration: study.timeEstimate || "~30 min",
+            studyId: event.studyId,
+          });
+
+          await prisma.jobNotification.create({
+            data: {
+              studyId: event.studyId,
+              testerId: tester.userId,
+              messageId: String(messageId),
+            },
+          });
+        } catch (err) {
+          console.error(`[orchestrator] Telegram send failed for ${tester.userId}:`, err);
+        }
+      }
+      console.log(`[orchestrator] Sent Telegram offers to ${testers.length} testers`);
+    } catch (err) {
+      console.error("[orchestrator] Telegram notification error:", err);
+    }
   });
 
   appEvents.onApp("SESSION_STARTED", async (event) => {
@@ -47,8 +88,16 @@ export function initOrchestrator() {
 
     const session = await prisma.session.findUnique({
       where: { id: event.sessionId },
-      include: { tester: true },
+      include: { tester: true, study: true },
     });
+
+    // Auto-generate report via agent
+    if (session) {
+      console.log(`[orchestrator] Auto-generating report for study ${session.studyId}`);
+      runReportAgent(session.studyId).catch((err) =>
+        console.error("[orchestrator] Report agent failed:", err)
+      );
+    }
     if (session) {
       await notificationService.create({
         userId: session.testerId,
@@ -56,6 +105,21 @@ export function initOrchestrator() {
         title: "Report ready",
         body: `Your session report is ready to view`,
       });
+
+      // Telegram completion notice
+      try {
+        const profile = await prisma.testerProfile.findUnique({
+          where: { userId: session.testerId },
+        });
+        if (profile?.telegramLinked && profile?.telegramChatId) {
+          await sendCompletionNotice({
+            chatId: profile.telegramChatId,
+            studyName: session.study?.name,
+          });
+        }
+      } catch (err) {
+        console.error("[orchestrator] Telegram completion notice failed:", err);
+      }
     }
   });
 

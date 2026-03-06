@@ -6,8 +6,8 @@ import type { AuthRequest } from "../types.js";
 
 const router = Router();
 router.use(authenticate);
-router.use(requireRole("business"));
 
+// GET endpoints accessible by both testers and business
 router.get("/study/:studyId", async (req: AuthRequest, res, next) => {
   try {
     const reports = await reportService.listByStudy(req.params.studyId);
@@ -22,14 +22,14 @@ router.get("/:id", async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/generate/:studyId", async (req: AuthRequest, res, next) => {
+router.post("/generate/:studyId", requireRole("business"), async (req: AuthRequest, res, next) => {
   try {
     const report = await reportService.generate(req.params.studyId);
     res.status(201).json(report);
   } catch (err) { next(err); }
 });
 
-router.patch("/tickets/:ticketId/select", async (req: AuthRequest, res, next) => {
+router.patch("/tickets/:ticketId/select", requireRole("business"), async (req: AuthRequest, res, next) => {
   try {
     const { selected } = req.body;
     const ticket = await jiraService.updateTicketSelection(req.params.ticketId, selected);
@@ -37,7 +37,7 @@ router.patch("/tickets/:ticketId/select", async (req: AuthRequest, res, next) =>
   } catch (err) { next(err); }
 });
 
-router.post("/:id/tickets/create-jira", async (req: AuthRequest, res, next) => {
+router.post("/:id/tickets/create-jira", requireRole("business"), async (req: AuthRequest, res, next) => {
   try {
     const { ticketIds } = req.body;
     if (!Array.isArray(ticketIds)) { res.status(400).json({ error: "ticketIds must be an array" }); return; }

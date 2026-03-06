@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middleware/auth.js";
 import { sessionService } from "../services/session.js";
 import { mediaService } from "../services/media.js";
+import { prisma } from "../db.js";
 import type { AuthRequest } from "../types.js";
 
 const router = Router();
@@ -66,6 +67,58 @@ router.post("/:id/upload-url", async (req: AuthRequest, res, next) => {
     const result = await mediaService.generateUploadUrl(req.params.id, type, filename);
     res.json(result);
   } catch (err) { next(err); }
+});
+
+// POST /api/sessions/:id/review — tester approves report and optionally adds a comment
+router.post("/:id/review", async (req: AuthRequest, res, next) => {
+  try {
+    const { comment } = req.body;
+    const userId = req.user!.userId;
+
+    const session = await prisma.session.findUnique({ where: { id: req.params.id } });
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.testerId !== userId) { res.status(403).json({ error: "Not your session" }); return; }
+
+    await prisma.session.update({
+      where: { id: req.params.id },
+      data: { testerApproved: true, testerComment: comment || null },
+    });
+
+    // Transition to completed
+    if (session.status === "report_ready") {
+      await prisma.session.update({
+        where: { id: req.params.id },
+        data: { status: "completed" },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/sessions/:id/feedback
+router.post("/:id/feedback", async (req: AuthRequest, res, next) => {
+  try {
+    const { rating, feedback: feedbackText, hardestArea, feeling } = req.body;
+    const userId = req.user!.userId;
+
+    const fb = await prisma.sessionFeedback.create({
+      data: {
+        sessionId: req.params.id,
+        testerId: userId,
+        rating: Math.min(5, Math.max(1, Number(rating))),
+        feedback: feedbackText || null,
+        hardestArea: hardestArea || null,
+        feeling: feeling || null,
+      },
+    });
+
+    res.json(fb);
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
